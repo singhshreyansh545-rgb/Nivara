@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Study Buddy</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Marked.js for parsing Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Flashcard 3D Flip Mechanics */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        /* Markdown Styling Overrides */
+        .prose h1, .prose h2, .prose h3 { font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; color: #1e293b; }
+        .prose p { margin-bottom: 1rem; color: #334155; }
+        .prose ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+        .prose strong { color: #0f172a; }
+    </style>
+</head>
+<body class="bg-gray-50 h-screen flex flex-col md:flex-row overflow-hidden text-gray-800 font-sans">
+
+    <!-- Navigation (Bottom on Mobile, Left Sidebar on Desktop) -->
+    <nav class="bg-white border-t md:border-t-0 md:border-r border-gray-200 w-full md:w-64 flex-shrink-0 order-last md:order-first z-10">
+        <div class="p-4 hidden md:block border-b border-gray-100">
+            <h1 class="text-xl font-bold text-indigo-600 flex items-center gap-2">
+                <i class="fa-solid fa-brain"></i> Study Buddy
+            </h1>
+        </div>
+        <ul class="flex md:flex-col justify-around md:justify-start p-2 md:p-4 gap-2">
+            <li class="w-full">
+                <button onclick="switchTab('upload')" id="tab-upload" class="nav-btn w-full flex flex-col md:flex-row items-center gap-2 p-2 md:p-3 rounded-lg text-indigo-600 bg-indigo-50 font-medium transition-colors">
+                    <i class="fa-solid fa-file-arrow-up text-lg"></i> <span class="text-xs md:text-sm">Upload</span>
+                </button>
+            </li>
+            <li class="w-full">
+                <button onclick="switchTab('chat')" id="tab-chat" class="nav-btn w-full flex flex-col md:flex-row items-center gap-2 p-2 md:p-3 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+                    <i class="fa-regular fa-comments text-lg"></i> <span class="text-xs md:text-sm">Chat</span>
+                </button>
+            </li>
+            <li class="w-full">
+                <button onclick="switchTab('summary')" id="tab-summary" class="nav-btn w-full flex flex-col md:flex-row items-center gap-2 p-2 md:p-3 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+                    <i class="fa-solid fa-list-ol text-lg"></i> <span class="text-xs md:text-sm">Summary</span>
+                </button>
+            </li>
+            <li class="w-full">
+                <button onclick="switchTab('flashcards')" id="tab-flashcards" class="nav-btn w-full flex flex-col md:flex-row items-center gap-2 p-2 md:p-3 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+                    <i class="fa-regular fa-clone text-lg"></i> <span class="text-xs md:text-sm">Cards</span>
+                </button>
+            </li>
+            <li class="w-full">
+                <button onclick="switchTab('quiz')" id="tab-quiz" class="nav-btn w-full flex flex-col md:flex-row items-center gap-2 p-2 md:p-3 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+                    <i class="fa-solid fa-spell-check text-lg"></i> <span class="text-xs md:text-sm">Quiz</span>
+                </button>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 relative overflow-y-auto bg-gray-50">
+        
+        <!-- Upload Section -->
+        <section id="sec-upload" class="section-container absolute inset-0 p-6 md:p-12 flex flex-col items-center justify-center transition-opacity duration-300">
+            <div class="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
+                <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600">
+                    <i class="fa-solid fa-cloud-arrow-up text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">Upload Notes</h2>
+                <p class="text-gray-500 mb-6 text-sm">Upload a PDF chapter, syllabus, or lecture slides to generate your study materials.</p>
+                
+                <input type="file" id="pdfUpload" accept=".pdf" class="hidden">
+                <label for="pdfUpload" class="cursor-pointer block w-full py-3 px-4 bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors mb-4 text-indigo-700 font-medium">
+                    Select PDF File
+                </label>
+                <div id="uploadStatus" class="text-sm font-medium h-6"></div>
+            </div>
+        </section>
+
+        <!-- Chat Section -->
+        <section id="sec-chat" class="section-container absolute inset-0 hidden flex flex-col h-full bg-white">
+            <div class="border-b p-4 shadow-sm bg-white z-10 flex-shrink-0">
+                <h2 class="font-bold text-lg">Ask about your notes</h2>
+            </div>
+            <div id="chatWindow" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 pb-32">
+                <!-- Chat messages go here -->
+            </div>
+            <div class="absolute bottom-0 left-0 w-full p-4 bg-white border-t">
+                <form id="chatForm" class="flex gap-2 max-w-4xl mx-auto">
+                    <input type="text" id="chatInput" placeholder="Explain the concept of..." class="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                    <button type="submit" class="bg-indigo-600 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-indigo-700 transition-colors shadow-md">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Summary Section -->
+        <section id="sec-summary" class="section-container absolute inset-0 hidden overflow-y-auto p-4 md:p-8">
+            <div class="max-w-4xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Chapter Summary</h2>
+                    <button onclick="generateSummary()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow-sm text-sm font-medium">Generate</button>
+                </div>
+                <div id="summaryContent" class="bg-white rounded-xl shadow-sm border p-6 md:p-8 prose prose-indigo max-w-none min-h-[50vh]">
+                    <div class="text-gray-400 text-center mt-10">Click generate to create a structured summary.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Flashcards Section -->
+        <section id="sec-flashcards" class="section-container absolute inset-0 hidden overflow-y-auto p-4 md:p-8">
+            <div class="max-w-4xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Key Terms</h2>
+                    <button onclick="generateFlashcards()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow-sm text-sm font-medium">Generate</button>
+                </div>
+                <div id="flashcardGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="col-span-full text-gray-400 text-center mt-10">Click generate to extract key terms.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quiz Section -->
+        <section id="sec-quiz" class="section-container absolute inset-0 hidden overflow-y-auto p-4 md:p-8">
+            <div class="max-w-3xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Self-Assessment</h2>
+                    <button onclick="generateQuiz()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow-sm text-sm font-medium">Generate Quiz</button>
+                </div>
+                <div id="quizContent" class="space-y-8 pb-20">
+                    <div class="text-gray-400 text-center mt-10">Click generate to create a quiz based on your notes.</div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- State Management ---
+        const API_BASE = "http://localhost:8000/api"; // Update this to your deployed backend URL later
+        let currentSessionId = null;
+
+        // --- Navigation Logic ---
+        function switchTab(tabId) {
+            if (!currentSessionId && tabId !== 'upload') {
+                alert("Please upload a PDF document first.");
+                return;
+            }
+
+            // Hide all sections
+            document.querySelectorAll('.section-container').forEach(sec => {
+                sec.classList.add('hidden');
+            });
+            
+            // Reset nav button styles
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-50', 'text-indigo-600');
+                btn.classList.add('text-gray-500');
+            });
+
+            // Show selected section
+            document.getElementById(`sec-${tabId}`).classList.remove('hidden');
+            
+            // Highlight selected nav button
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.remove('text-gray-500');
+            activeBtn.classList.add('bg-indigo-50', 'text-indigo-600');
+        }
+
+        // --- 1. Upload Logic ---
+        document.getElementById('pdfUpload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const status = document.getElementById('uploadStatus');
+            status.innerHTML = `<span class="text-indigo-500"><i class="fa-solid fa-spinner fa-spin"></i> Processing PDF...</span>`;
+            
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const response = await fetch(`${API_BASE}/upload`, { method: "POST", body: formData });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentSessionId = data.session_id;
+                    status.innerHTML = `<span class="text-green-600"><i class="fa-solid fa-check"></i> Ready to study!</span>`;
+                    setTimeout(() => switchTab('chat'), 1000);
+                } else {
+                    status.innerHTML = `<span class="text-red-500">${data.detail || 'Upload failed'}</span>`;
+                }
+            } catch (err) {
+                status.innerHTML = `<span class="text-red-500">Connection error. Is the backend running?</span>`;
+            }
+        });
+
+        // --- 2. Chat Logic ---
+        document.getElementById('chatForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const question = input.value.trim();
+            if (!question) return;
+
+            appendMessage('user', question);
+            input.value = '';
+            
+            // Show loading bubble
+            const loadingId = appendMessage('ai', '<i class="fa-solid fa-ellipsis fa-bounce"></i> Thinking...');
+
+            try {
+                const response = await fetch(`${API_BASE}/chat`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ session_id: currentSessionId, question: question })
+                });
+                const data = await response.json();
+                
+                document.getElementById(loadingId).innerHTML = marked.parse(data.answer);
+            } catch (err) {
+                document.getElementById(loadingId).innerHTML = `<span class="text-red-500">Failed to connect to AI.</span>`;
+            }
+        });
+
+        function appendMessage(sender, text) {
+            const window = document.getElementById('chatWindow');
+            const id = `msg-${Date.now()}`;
+            const isUser = sender === 'user';
+            
+            const msgHTML = `
+                <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[85%] rounded-2xl px-5 py-3 ${isUser ? 'bg-indigo-600 text-white' : 'bg-white border shadow-sm text-gray-800 prose prose-sm'}" id="${id}">
+                        ${isUser ? text : text} 
+                    </div>
+                </div>
+            `;
+            window.insertAdjacentHTML('beforeend', msgHTML);
+            window.scrollTop = window.scrollHeight;
+            return id;
+        }
+
+        // --- 3. Summary Logic ---
+        async function generateSummary() {
+            const content = document.getElementById('summaryContent');
+            content.innerHTML = `<div class="text-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500 mb-4"></i><p>Reading document and synthesizing notes...</p></div>`;
+            
+            try {
+                const response = await fetch(`${API_BASE}/summarize`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ session_id: currentSessionId })
+                });
+                const data = await response.json();
+                content.innerHTML = marked.parse(data.summary);
+            } catch (err) {
+                content.innerHTML = `<div class="text-red-500">Failed to generate summary.</div>`;
+            }
+        }
+
+        // --- 4. Flashcards Logic ---
+        async function generateFlashcards() {
+            const grid = document.getElementById('flashcardGrid');
+            grid.innerHTML = `<div class="col-span-full text-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500"></i></div>`;
+            
+            try {
+                const response = await fetch(`${API_BASE}/generate/flashcards`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ session_id: currentSessionId })
+                });
+                const data = await response.json();
+                
+                if (data.flashcards) {
+                    grid.innerHTML = '';
+                    data.flashcards.forEach((card, index) => {
+                        const html = `
+                            <div class="perspective-1000 h-64 cursor-pointer group" onclick="this.querySelector('.inner').classList.toggle('rotate-y-180')">
+                                <div class="inner relative w-full h-full transform-style-3d shadow-sm hover:shadow-md transition-shadow rounded-2xl">
+                                    <!-- Front -->
+                                    <div class="absolute w-full h-full backface-hidden bg-white border-2 border-indigo-50 rounded-2xl flex items-center justify-center p-6 text-center">
+                                        <h3 class="text-xl font-bold text-indigo-900">${card.term}</h3>
+                                        <div class="absolute bottom-4 text-xs text-gray-400">Tap to flip</div>
+                                    </div>
+                                    <!-- Back -->
+                                    <div class="absolute w-full h-full backface-hidden bg-indigo-600 text-white rounded-2xl flex items-center justify-center p-6 text-center rotate-y-180">
+                                        <p class="text-sm md:text-base font-medium">${card.definition}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        grid.insertAdjacentHTML('beforeend', html);
+                    });
+                }
+            } catch (err) {
+                grid.innerHTML = `<div class="text-red-500 col-span-full">Failed to generate flashcards.</div>`;
+            }
+        }
+
+        // --- 5. Quiz Logic ---
+        async function generateQuiz() {
+            const container = document.getElementById('quizContent');
+            container.innerHTML = `<div class="text-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500"></i></div>`;
+            
+            try {
+                const response = await fetch(`${API_BASE}/generate/quiz`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ session_id: currentSessionId })
+                });
+                const data = await response.json();
+                
+                if (data.quiz) {
+                    container.innerHTML = '';
+                    data.quiz.forEach((q, qIndex) => {
+                        let optionsHTML = '';
+                        q.options.forEach((opt, oIndex) => {
+                            optionsHTML += `
+                                <div class="quiz-option cursor-pointer p-4 border rounded-xl hover:bg-gray-50 transition-colors" 
+                                     onclick="checkAnswer(this, '${opt.replace(/'/g, "\\'")}', '${q.answer.replace(/'/g, "\\'")}')">
+                                    ${opt}
+                                </div>
+                            `;
+                        });
+                        
+                        const qHTML = `
+                            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+                                <h3 class="font-bold text-lg mb-4 text-gray-800"><span class="text-indigo-500 mr-2">Q${qIndex + 1}.</span>${q.question}</h3>
+                                <div class="space-y-3 pointer-events-auto options-group">
+                                    ${optionsHTML}
+                                </div>
+                            </div>
+                        `;
+                        container.insertAdjacentHTML('beforeend', qHTML);
+                    });
+                }
+            } catch (err) {
+                container.innerHTML = `<div class="text-red-500">Failed to generate quiz.</div>`;
+            }
+        }
+
+        function checkAnswer(element, selected, correct) {
+            // Disable other options in this question
+            const group = element.closest('.options-group');
+            group.classList.add('pointer-events-none');
+            
+            // Check if correct
+            if (selected === correct) {
+                element.classList.replace('border', 'border-green-500');
+                element.classList.add('bg-green-50', 'text-green-800');
+                element.innerHTML += ' <i class="fa-solid fa-circle-check float-right text-green-500 text-xl"></i>';
+            } else {
+                element.classList.replace('border', 'border-red-500');
+                element.classList.add('bg-red-50', 'text-red-800');
+                element.innerHTML += ' <i class="fa-solid fa-circle-xmark float-right text-red-500 text-xl"></i>';
+                
+                // Highlight the correct one
+                const allOptions = group.querySelectorAll('.quiz-option');
+                allOptions.forEach(opt => {
+                    if (opt.innerText.trim() === correct.trim()) {
+                        opt.classList.replace('border', 'border-green-500');
+                        opt.classList.add('bg-green-50');
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
